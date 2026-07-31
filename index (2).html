@@ -127,7 +127,7 @@
         const frames = [document.getElementById('frameAttendance'), document.getElementById('frameCheque')];
         const anyUnconfigured = frames.some(f => {
           try{
-            return /YOUR_API_KEY/.test(f.contentDocument.documentElement.innerHTML);
+            return /"AIzaSyDrECMzJUV5X5xjNlcokD7qFw9qjnaH4CU"/.test(f.contentDocument.documentElement.innerHTML);
           }catch(e){ return false; }
         });
         document.getElementById('setupBar').classList.toggle('show', anyUnconfigured);
