@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Office Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #1C2530;
+    --ink-deep: #12181F;
+    --paper: #E9EAE0;
+    --gold: #A9822F;
+    --line: rgba(233,234,224,0.16);
+  }
+  *{ box-sizing: border-box; }
+  html, body{ height: 100%; }
+  body{
+    margin: 0;
+    background: var(--ink-deep);
+    font-family: 'IBM Plex Mono', monospace;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tabbar{
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    padding: 14px 16px 0;
+    background: var(--ink-deep);
+    border-bottom: 3px solid var(--gold);
+  }
+  .tabbar .brand{
+    font-family: 'Special Elite', cursive;
+    color: var(--paper);
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 0 16px 10px 4px;
+    opacity: 0.55;
+    white-space: nowrap;
+  }
+  .tab{
+    appearance: none;
+    border: none;
+    background: #232D3A;
+    color: #9AA5B1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: .3px;
+    padding: 10px 20px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    position: relative;
+    top: 1px;
+  }
+  .tab:hover{ background: #2B3648; color: var(--paper); }
+  .tab.active{
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .stage{
+    flex: 1;
+    position: relative;
+    background: var(--paper);
+  }
+  .stage iframe{
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: none;
+    background: var(--paper);
+  }
+  .stage iframe.active{ display: block; }
+
+  .setupbar{
+    display: none;
+    padding: 8px 16px;
+    background: #3a2a1a;
+    color: #E0C08C;
+    font-size: 11px;
+    text-align: center;
+    letter-spacing: .3px;
+  }
+  .setupbar.show{ display: block; }
+  .setupbar code{ background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="tabbar">
+  <span class="brand">Office Tools</span>
+  <button class="tab active" id="tabAttendance" data-target="frameAttendance">Attendance &amp; Payroll</button>
+  <button class="tab" id="tabCheque" data-target="frameCheque">Cheque Tracker</button>
+</div>
+
+<div class="setupbar" id="setupBar">
+  Both tools share one Firebase project for live, cross-device syncing. Open <code>attendance.html</code> or <code>cheque-tracker.html</code>, find the "FIREBASE SETUP" comment near the top of the &lt;script&gt; tag in either file, and paste in your project's config — pasting it in one file is enough to test, but add it to both so each tool can save.
+</div>
+
+<div class="stage">
+  <iframe id="frameAttendance" class="active" src="attendance.html" title="Attendance and Payroll"></iframe>
+  <iframe id="frameCheque" src="cheque-tracker.html" title="Cheque Tracker"></iframe>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.stage iframe').forEach(f => f.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.target).classList.add('active');
+    });
+  });
+
+  // Best-effort: show the setup reminder if either app hasn't been configured.
+  // Reading into a cross-origin-safe same-origin iframe's document is fine here
+  // since both files are served from the same origin once deployed together.
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      try{
+        const frames = [document.getElementById('frameAttendance'), document.getElementById('frameCheque')];
+        const anyUnconfigured = frames.some(f => {
+          try{
+            return /YOUR_API_KEY/.test(f.contentDocument.documentElement.innerHTML);
+          }catch(e){ return false; }
+        });
+        document.getElementById('setupBar').classList.toggle('show', anyUnconfigured);
+      }catch(e){ /* cross-origin or not yet loaded — skip silently */ }
+    }, 600);
+  });
+</script>
+
+</body>
+</html>

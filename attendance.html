@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attendance Register</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Serif:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --paper: #EDEEE1;
+  --paper-deep: #E3E5D4;
+  --paper-line: #C9CCB6;
+  --ink: #1E2A32;
+  --ink-soft: #57646A;
+  --navy: #2B3A55;
+  --navy-deep: #202C42;
+  --present: #3F6B4C;
+  --absent: #A8402F;
+  --leave: #C98A2C;
+  --blank: #9AA290;
+  --radius: 3px;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin:0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'IBM Plex Serif', serif;
+  min-height: 100vh;
+}
+
+.wrap{
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 0 64px;
+}
+
+header.band{
+  background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+  color: #EDEEE1;
+  padding: 30px 28px 24px;
+  border-bottom: 4px solid var(--ink);
+}
+
+header.band h1{
+  font-family: 'Special Elite', cursive;
+  font-size: 28px;
+  letter-spacing: 2px;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+header.band .sub{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: #C7CDD8;
+  letter-spacing: .5px;
+}
+
+.savestatus{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: .4px;
+  margin-top: 6px;
+  color: #9FB3A8;
+}
+.savestatus.warn{ color: #E0A25C; }
+
+.fbnotice{
+  display: none;
+  padding: 12px 28px;
+  background: #3a2a1a;
+  color: #E0C08C;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  border-bottom: 1px solid var(--paper-line);
+}
+.fbnotice.show{ display: block; }
+.fbnotice code{ background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px; }
+
+.backupbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap: wrap;
+}
+.backupbar button{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.backupbar button:hover{ background: #fff; }
+.backuppanel{
+  display: none;
+  padding: 14px 28px;
+  background: var(--paper-deep);
+  border-bottom: 1px solid var(--paper-line);
+}
+.backuppanel.open{ display: block; }
+.backuppanel textarea{
+  width: 100%;
+  min-height: 110px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 10px;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.backuppanel .row2{
+  display:flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.backuppanel p{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+
+.toolbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap: wrap;
+  padding: 18px 28px;
+  background: var(--paper-deep);
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.datebox{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+}
+
+button.navbtn{
+  background: var(--paper);
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  border-radius: var(--radius);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+button.navbtn:hover{ background: #fff; }
+
+input[type="date"]{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+button.today{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--navy);
+  color: var(--navy);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+button.today:hover{ background: var(--navy); color: #fff; }
+
+.spacer{ flex: 1; }
+
+.addform{
+  display:flex;
+  gap:6px;
+}
+.addform input[type="text"]{
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 14px;
+  padding: 7px 10px;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--radius);
+  background: #fff;
+  min-width: 170px;
+}
+.addform button{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0 14px;
+  cursor: pointer;
+}
+.addform button:hover{ background: #000; }
+
+.daysummary{
+  display:flex;
+  gap:22px;
+  padding: 14px 28px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: .5px;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--paper-line);
+  flex-wrap: wrap;
+}
+.daysummary b{ color: var(--ink); font-size: 14px; margin-right: 4px; }
+.dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+
+.ledger{
+  padding: 6px 28px 10px;
+}
+
+.empty{
+  padding: 40px 28px;
+  text-align:center;
+  color: var(--ink-soft);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.row{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--paper-line);
+  background-image: repeating-linear-gradient(transparent, transparent);
+}
+.row:last-child{ border-bottom: none; }
+
+.name{
+  flex:1;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.rmbtn{
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  opacity: .55;
+  padding: 4px 6px;
+}
+.rmbtn:hover{ opacity: 1; color: var(--absent); }
+
+.stamp{
+  width: 118px;
+  height: 46px;
+  border-radius: 40% 42% 40% 42% / 45% 40% 48% 42%;
+  border: 2.5px solid var(--blank);
+  color: var(--blank);
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Special Elite', cursive;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition: color .15s, border-color .15s;
+}
+.stamp:focus-visible{ outline: 2px solid var(--navy); outline-offset: 3px; }
+
+.stamp.present{ border-color: var(--present); color: var(--present); mix-blend-mode: multiply; }
+.stamp.absent{ border-color: var(--absent); color: var(--absent); mix-blend-mode: multiply; }
+.stamp.leave{ border-color: var(--leave); color: var(--leave); mix-blend-mode: multiply; }
+
+.stamp.thump{ animation: thump .38s cubic-bezier(.36,1.7,.4,1); }
+@keyframes thump{
+  0%{ transform: scale(1.5) rotate(var(--rot)); opacity: 0; }
+  60%{ transform: scale(.92) rotate(var(--rot)); opacity: 1; }
+  100%{ transform: scale(1) rotate(var(--rot)); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce){
+  .stamp.thump{ animation: none; }
+}
+
+.monthly, .weekly{
+  margin: 26px 28px 0;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.monthly h2, .weekly h2{
+  font-family: 'Special Elite', cursive;
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--paper-deep);
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--paper-line);
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.weekly h2 .weeknav{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.weekly h2 .weeknav button{
+  background: var(--paper);
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  border-radius: var(--radius);
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.rateinput{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  width: 78px;
+  padding: 4px 6px;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--radius);
+  background: #fff;
+}
+td.total-row{ font-weight: 600; }
+.weekly tfoot td{
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  border-top: 2px solid var(--ink);
+  border-bottom: none;
+  background: var(--paper-deep);
+}
+table{ width: 100%; border-collapse: collapse; }
+th, td{
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--paper-line);
+}
+th{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--ink-soft);
+}
+td.num{ font-family: 'IBM Plex Mono', monospace; }
+tr:last-child td{ border-bottom: none; }
+.tally-p{ color: var(--present); }
+.tally-a{ color: var(--absent); }
+.tally-l{ color: var(--leave); }
+
+.details-section{
+  margin: 26px 28px 0;
+}
+.details-section h2{
+  font-family: 'Special Elite', cursive;
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+.detail-card{
+  background: #fff;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+.detail-card .dc-head{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.empcode{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: .5px;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  color: var(--ink-soft);
+}
+.nameinput{
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 600;
+  font-size: 16px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 3px 4px;
+  flex: 1;
+  min-width: 140px;
+}
+.nameinput:hover, .nameinput:focus{ border-color: var(--ink-soft); background: #fff; }
+
+.detail-grid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 16px;
+}
+.field label{
+  display:block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+}
+.field input{
+  width: 100%;
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.field.money input{ font-family: 'IBM Plex Mono', monospace; }
+.dc-section-label{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--ink-soft);
+  margin: 12px 0 8px;
+  border-top: 1px dashed var(--paper-line);
+  padding-top: 10px;
+}
+
+.payslips-section{ margin: 26px 28px 0; }
+.payslips-section > h2{
+  font-family: 'Special Elite', cursive;
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.printall{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  background: transparent;
+  border: 1px solid var(--navy);
+  color: var(--navy);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.printall:hover{ background: var(--navy); color: #fff; }
+
+.payslip-card{
+  background: #fff;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 18px;
+}
+.payslip-top{
+  display:flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.payslip-top h3{
+  font-family: 'Special Elite', cursive;
+  font-size: 18px;
+  letter-spacing: 1px;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+.payslip-top .period{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.payslip-top .pbtn{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  cursor: pointer;
+  height: fit-content;
+}
+.payslip-meta{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 20px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.payslip-meta div span{ color: var(--ink-soft); margin-right: 6px; }
+.payslip-cols{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.payslip-block h4{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+  border-bottom: 1px solid var(--paper-line);
+  padding-bottom: 6px;
+}
+.payslip-line{
+  display:flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.payslip-line.sub{ color: var(--ink-soft); }
+.payslip-line.bonusline input{
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  width: 90px;
+  text-align: right;
+  padding: 3px 6px;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+}
+.payslip-line.bonusline input:focus{ border-color: var(--navy); outline: none; }
+.payslip-line.total{
+  border-top: 1px solid var(--ink);
+  margin-top: 6px;
+  padding-top: 8px;
+  font-weight: 600;
+}
+.payslip-net{
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
+  display:flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'Special Elite', cursive;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.payslip-net .amt{ font-size: 22px; }
+
+@media print{
+  header.band, .toolbar, .daysummary, .ledger, .details-section, .monthly, footer.note, .printall{
+    display: none !important;
+  }
+  .payslips-section > h2{ display:none; }
+  .payslip-card{ break-inside: avoid; page-break-after: always; border: none; }
+  .payslip-card:last-child{ page-break-after: auto; }
+  .payslip-top .pbtn{ display:none; }
+  .payslip-line.bonusline input{
+    border: none;
+    background: transparent;
+    padding: 0;
+    width: auto;
+    -moz-appearance: textfield;
+  }
+  .payslip-line.bonusline input::-webkit-outer-spin-button,
+  .payslip-line.bonusline input::-webkit-inner-spin-button{
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  body{ background: #fff; }
+}
+body.printing-single .payslip-card{ display:none; }
+body.printing-single .payslip-card.print-target{ display:block; page-break-after: auto; }
+
+footer.note{
+  padding: 18px 28px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 560px){
+  header.band, .toolbar, .daysummary, .ledger, .monthly, .details-section, .weekly, .payslips-section{ padding-left: 16px; padding-right: 16px; }
+  .monthly, .weekly{ margin-left: 16px; margin-right: 16px; }
+  .stamp{ width: 96px; }
+  .name{ font-size: 15px; }
+  .detail-grid{ grid-template-columns: 1fr 1fr; }
+  .payslip-cols{ grid-template-columns: 1fr; }
+  .payslip-meta{ grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="band">
+    <h1>Attendance Register</h1>
+    <div class="sub" id="dateSub">—</div>
+    <div class="savestatus" id="saveStatus"></div>
+  </header>
+
+  <div class="fbnotice" id="fbNotice">
+    ⚠ Firebase isn't configured yet, so this app can't save or sync. Open this file's HTML, find the "FIREBASE SETUP" comment near the top of the &lt;script&gt; tag, and paste in your project's config — the same one used in the Cheque Tracker tab. See the comment for step-by-step instructions.
+  </div>
+
+  <div class="toolbar">
+    <div class="datebox">
+      <button class="navbtn" id="prevDay" aria-label="Previous day">‹</button>
+      <input type="date" id="dateInput" />
+      <button class="navbtn" id="nextDay" aria-label="Next day">›</button>
+    </div>
+    <button class="today" id="todayBtn">Today</button>
+    <div class="spacer"></div>
+    <div class="addform" id="addForm">
+      <input type="text" id="nameInput" placeholder="Employee name" maxlength="60" />
+      <button type="button" id="addBtn">Add to register</button>
+    </div>
+    <div class="backupbar">
+      <button type="button" id="backupToggle">Backup / Restore</button>
+    </div>
+  </div>
+
+  <div class="backuppanel" id="backupPanel">
+    <p>Copy this text somewhere safe (Notes, Docs, email to yourself). If storage ever fails to save, paste it back in here to restore your data.</p>
+    <textarea id="backupText"></textarea>
+    <div class="row2">
+      <button type="button" id="backupCopyBtn">Copy backup</button>
+      <button type="button" id="backupRestoreBtn">Restore from pasted text</button>
+      <button type="button" id="backupCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <div class="daysummary" id="daySummary"></div>
+
+  <div class="ledger" id="ledger"></div>
+
+  <div class="details-section" id="detailsSection"></div>
+
+  <div class="weekly" id="weekly"></div>
+
+  <div class="payslips-section" id="payslipsSection"></div>
+
+  <div class="monthly" id="monthly"></div>
+
+  <footer class="note">Tap a stamp to cycle: unmarked → present → absent → on leave. Pay is calculated from daily rate × days present, Sunday through Saturday. Synced live to your team's shared database.</footer>
+</div>
+
+<script>
+const STATES = ['present','absent','leave'];
+const STATE_LABEL = { present: 'Present', absent: 'Absent', leave: 'On leave' };
+const STATE_COLOR = { present: 'var(--present)', absent: 'var(--absent)', leave: 'var(--leave)' };
+
+let employees = [];
+let attendance = {};
+let bonuses = {}; // keyed by `${empId}|${weekStartDate}` — entered fresh each week, not reused
+let currentDate = todayStr();
+let weekAnchor = todayStr(); // drives which week the pay panel and payslips show
+let empCounter = 0; // for sequential Employee IDs
+let localChangesMade = false; // true once the user edits anything, so a slow background load never overwrites it
+
+function todayStr(){
+  return toLocalDateStr(new Date());
+}
+
+// Formats a Date object as YYYY-MM-DD using LOCAL calendar fields.
+// Never use .toISOString() for this: it converts to UTC first, which
+// silently shifts the date backward by one day in timezones ahead of UTC
+// (e.g. Philippines, UTC+8) — that was the "skips a day" bug.
+function toLocalDateStr(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function fmtLongDate(dstr){
+  const [y,m,d] = dstr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+
+function keyFor(empId, dateStr){ return empId + '|' + dateStr; }
+
+// Returns {start, end} as YYYY-MM-DD, Sunday through Saturday, for the week containing dateStr.
+function getWeekRange(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay(); // 0 = Sunday
+  const start = new Date(d); start.setDate(d.getDate() - dow);
+  const end = new Date(start); end.setDate(start.getDate() + 6);
+  return { start: toLocalDateStr(start), end: toLocalDateStr(end) };
+}
+
+function fmtShort(dstr){
+  const [y,m,d] = dstr.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+
+function fmtMoney(n){
+  return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function hashRot(id){
+  let h = 0;
+  for(let i=0;i<id.length;i++){ h = (h*31 + id.charCodeAt(i)) % 1000; }
+  return ((h % 7) - 3); // -3..3 deg
+}
+
+/* =====================================================================
+   FIREBASE SETUP — REQUIRED BEFORE THIS APP WILL SAVE OR SYNC ANYTHING
+   =====================================================================
+   Use the exact same firebaseConfig you set up for the Cheque Tracker
+   tab — both apps share one Firebase project, just different data paths
+   ("payroll" here, "register"/"names" over there), so your team sees
+   one shared, real-time-synced set of tools.
+   1. Go to https://console.firebase.google.com and create a free project
+      (or reuse the one from the Cheque Tracker).
+   2. Build > Realtime Database > create a database (test mode is fine
+      to start, then lock it down — see rules below).
+   3. Project settings > General > Your apps > web icon (</>) > copy the
+      firebaseConfig object and paste it in place of the placeholder below.
+   4. Recommended Realtime Database rules (Rules tab):
+        {
+          "rules": {
+            "register": { ".read": true, ".write": true },
+            "names": { ".read": true, ".write": true },
+            "payroll": { ".read": true, ".write": true }
+          }
+        }
+      Fine for a small private team tool. Anyone with your database URL
+      could read or write it, so don't publicize the URL beyond people
+      you trust.
+   5. Deploy this file alongside cheque-tracker.html and index.html
+      (GitHub Pages, Cloudflare Pages, etc.) so everyone opens the same
+      site and sees the same shared, live-synced data.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDrECMzJUV5X5xjNlcokD7qFw9qjnaH4CU",
+  authDomain: "rll-server.firebaseapp.com",
+  projectId: "rll-server",
+  storageBucket: "rll-server.firebasestorage.app",
+  messagingSenderId: "443252621704",
+  appId: "1:443252621704:web:589608db39ae8adb77fa3d",
+  measurementId: "G-0YGZG7NTDK"
+};
+
+let firebaseReady = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db = null;
+if(firebaseReady){
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  }catch(e){
+    firebaseReady = false;
+    console.error('Firebase init failed:', e);
+  }
+}
+
+function setSaveStatus(ok, detail){
+  const el = document.getElementById('saveStatus');
+  if(!el) return;
+  if(!firebaseReady){
+    el.textContent = '⚠ Firebase not configured — changes will not be saved.';
+    el.classList.add('warn');
+  } else if(ok){
+    el.textContent = 'Connected — synced live.';
+    el.classList.remove('warn');
+  } else {
+    el.textContent = '⚠ Could not sync' + (detail ? ' (' + detail + ')' : '') + '. Your changes are still visible here.';
+    el.classList.add('warn');
+  }
+}
+
+function applyMigrations(){
+  let migrated = false;
+  employees.forEach(emp => {
+    if(!emp.empCode){ empCounter++; emp.empCode = 'EMP-' + String(empCounter).padStart(3,'0'); migrated = true; }
+    if(emp.position === undefined){ emp.position = ''; migrated = true; }
+    if(emp.dateHired === undefined){ emp.dateHired = ''; migrated = true; }
+    if(emp.contact === undefined){ emp.contact = ''; migrated = true; }
+    if(emp.sssNo === undefined){ emp.sssNo = ''; migrated = true; }
+    if(emp.philhealthNo === undefined){ emp.philhealthNo = ''; migrated = true; }
+    if(!emp.deductions){ emp.deductions = { philhealth: 0, sss: 0, savings: 0, others: 0, cashAdvance: 0 }; migrated = true; }
+    if(emp.deductions.cashAdvance === undefined){ emp.deductions.cashAdvance = 0; migrated = true; }
+    if(emp.rate === undefined){ emp.rate = 0; migrated = true; }
+  });
+  return migrated;
+}
+
+function loadData(){
+  document.getElementById('fbNotice').classList.toggle('show', !firebaseReady);
+
+  if(!firebaseReady){
+    setSaveStatus(false);
+    render();
+    return;
+  }
+
+  db.ref('payroll').on('value', (snapshot) => {
+    const val = snapshot.val();
+    if(!localChangesMade){
+      employees = (val && Array.isArray(val.employees)) ? val.employees : [];
+      attendance = (val && val.attendance) ? val.attendance : {};
+      bonuses = (val && val.bonuses) ? val.bonuses : {};
+      empCounter = (val && Number(val.empCounter)) || 0;
+    }
+    if(applyMigrations()) save();
+    setSaveStatus(true);
+    render();
+  }, (err) => {
+    setSaveStatus(false, err.message);
+    render();
+  });
+}
+
+async function save(){
+  if(!firebaseReady){ setSaveStatus(false); return; }
+  try{
+    await db.ref('payroll').set({ employees, attendance, bonuses, empCounter });
+    setSaveStatus(true);
+  }catch(err){
+    console.error('Could not save to Firebase', err);
+    setSaveStatus(false, err.message);
+  }
+}
+
+function render(){
+  document.getElementById('dateInput').value = currentDate;
+  document.getElementById('dateSub').textContent = fmtLongDate(currentDate);
+  renderLedger();
+  renderDaySummary();
+  renderDetails();
+  renderWeekly();
+  renderPayslips();
+  renderMonthly();
+}
+
+function renderLedger(){
+  const el = document.getElementById('ledger');
+  if(employees.length === 0){
+    el.innerHTML = '<div class="empty">The register is empty. Add your first employee above to begin taking attendance.</div>';
+    return;
+  }
+  el.innerHTML = employees.map(emp => {
+    const st = attendance[keyFor(emp.id, currentDate)];
+    const rot = hashRot(emp.id);
+    const cls = st ? ('stamp ' + st) : 'stamp';
+    const label = st ? STATE_LABEL[st] : 'Tap to mark';
+    return `<div class="row">
+      <div class="name">${escapeHtml(emp.name)}</div>
+      <button class="stamp ${st||''}" style="--rot:${rot}deg" data-emp="${emp.id}" aria-label="${escapeHtml(emp.name)}: ${label}. Tap to change.">${label}</button>
+      <button class="rmbtn" data-remove="${emp.id}">Remove</button>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('button.stamp').forEach(btn => {
+    btn.addEventListener('click', () => cycleStatus(btn.dataset.emp, btn));
+  });
+  el.querySelectorAll('button.rmbtn').forEach(btn => {
+    btn.addEventListener('click', () => removeEmployee(btn.dataset.remove));
+  });
+}
+
+function renderDaySummary(){
+  const el = document.getElementById('daySummary');
+  let p=0,a=0,l=0,u=0;
+  employees.forEach(emp => {
+    const st = attendance[keyFor(emp.id, currentDate)];
+    if(st==='present') p++; else if(st==='absent') a++; else if(st==='leave') l++; else u++;
+  });
+  el.innerHTML = `
+    <span><span class="dot" style="background:var(--present)"></span><b>${p}</b>Present</span>
+    <span><span class="dot" style="background:var(--absent)"></span><b>${a}</b>Absent</span>
+    <span><span class="dot" style="background:var(--leave)"></span><b>${l}</b>On leave</span>
+    <span><span class="dot" style="background:var(--blank)"></span><b>${u}</b>Unmarked</span>
+  `;
+}
+
+function renderDetails(){
+  const el = document.getElementById('detailsSection');
+  if(employees.length === 0){
+    el.innerHTML = '<h2>Employee Details</h2><div class="empty">Add employees above to fill in their details.</div>';
+    return;
+  }
+  const cards = employees.map(emp => `
+    <div class="detail-card" data-card="${emp.id}">
+      <div class="dc-head">
+        <span class="empcode">${emp.empCode}</span>
+        <input class="nameinput" type="text" value="${escapeAttr(emp.name)}" data-field="name" data-emp="${emp.id}" aria-label="Name" />
+      </div>
+      <div class="detail-grid">
+        <div class="field"><label>Position</label><input type="text" value="${escapeAttr(emp.position)}" data-field="position" data-emp="${emp.id}" /></div>
+        <div class="field"><label>Date hired</label><input type="date" value="${escapeAttr(emp.dateHired)}" data-field="dateHired" data-emp="${emp.id}" /></div>
+        <div class="field"><label>Contact number</label><input type="text" value="${escapeAttr(emp.contact)}" data-field="contact" data-emp="${emp.id}" /></div>
+        <div class="field"><label>SSS number</label><input type="text" value="${escapeAttr(emp.sssNo)}" data-field="sssNo" data-emp="${emp.id}" /></div>
+        <div class="field"><label>PhilHealth number</label><input type="text" value="${escapeAttr(emp.philhealthNo)}" data-field="philhealthNo" data-emp="${emp.id}" /></div>
+      </div>
+      <div class="dc-section-label">Fixed deductions per payslip</div>
+      <div class="detail-grid">
+        <div class="field money"><label>PhilHealth</label><input type="number" min="0" step="0.01" value="${emp.deductions.philhealth}" data-ded="philhealth" data-emp="${emp.id}" /></div>
+        <div class="field money"><label>SSS</label><input type="number" min="0" step="0.01" value="${emp.deductions.sss}" data-ded="sss" data-emp="${emp.id}" /></div>
+        <div class="field money"><label>Savings</label><input type="number" min="0" step="0.01" value="${emp.deductions.savings}" data-ded="savings" data-emp="${emp.id}" /></div>
+        <div class="field money"><label>Others</label><input type="number" min="0" step="0.01" value="${emp.deductions.others}" data-ded="others" data-emp="${emp.id}" /></div>
+        <div class="field money"><label>Cash Advance</label><input type="number" min="0" step="0.01" value="${emp.deductions.cashAdvance}" data-ded="cashAdvance" data-emp="${emp.id}" /></div>
+      </div>
+    </div>
+  `).join('');
+
+  el.innerHTML = '<h2>Employee Details</h2>' + cards;
+
+  el.querySelectorAll('input[data-field]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const emp = employees.find(e => e.id === inp.dataset.emp);
+      if(!emp) return;
+      localChangesMade = true;
+      if(inp.dataset.field === 'name' && !inp.value.trim()){ inp.value = emp.name; return; }
+      emp[inp.dataset.field] = inp.dataset.field === 'name' ? inp.value.trim() : inp.value;
+      renderLedger();
+      renderWeekly();
+      renderPayslips();
+      save();
+    });
+  });
+  el.querySelectorAll('input[data-ded]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const emp = employees.find(e => e.id === inp.dataset.emp);
+      if(!emp) return;
+      localChangesMade = true;
+      emp.deductions[inp.dataset.ded] = Math.max(0, Number(inp.value) || 0);
+      renderPayslips();
+      save();
+    });
+  });
+}
+
+function escapeAttr(s){
+  return String(s == null ? '' : s).replace(/"/g, '&quot;');
+}
+
+function computeWeeklyPay(emp, anchorDate){
+  const { start, end } = getWeekRange(anchorDate);
+  let presentDays = 0;
+  for(let i=0;i<7;i++){
+    const d = new Date(start + 'T00:00:00'); d.setDate(d.getDate()+i);
+    const dstr = toLocalDateStr(d);
+    if(attendance[keyFor(emp.id, dstr)] === 'present') presentDays++;
+  }
+  const rate = Number(emp.rate) || 0;
+  const gross = presentDays * rate;
+  return { start, end, presentDays, rate, gross };
+}
+
+function renderWeekly(){
+  const el = document.getElementById('weekly');
+  const { start, end } = getWeekRange(weekAnchor);
+
+  if(employees.length === 0){
+    el.innerHTML = `<h2>Weekly pay — ${fmtShort(start)}–${fmtShort(end)}
+      <span class="weeknav">
+        <button id="prevWeek" aria-label="Previous week">‹</button>
+        <button id="nextWeek" aria-label="Next week">›</button>
+      </span></h2>
+      <div class="empty">Add employees above to calculate weekly pay.</div>`;
+    hookWeekNav();
+    return;
+  }
+
+  let grandTotal = 0;
+  const rows = employees.map(emp => {
+    const { presentDays, rate, gross } = computeWeeklyPay(emp, weekAnchor);
+    grandTotal += gross;
+    return `<tr>
+      <td>${escapeHtml(emp.name)}</td>
+      <td class="num"><input type="number" class="rateinput" min="0" step="0.01" value="${rate}" data-rate="${emp.id}" aria-label="Daily rate for ${escapeHtml(emp.name)}" /></td>
+      <td class="num">${presentDays}</td>
+      <td class="num total-row">${fmtMoney(gross)}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <h2>Weekly pay — ${fmtShort(start)}–${fmtShort(end)} (Sunday–Saturday)
+      <span class="weeknav">
+        <button id="prevWeek" aria-label="Previous week">‹</button>
+        <button id="nextWeek" aria-label="Next week">›</button>
+      </span>
+    </h2>
+    <table>
+      <thead><tr><th>Employee</th><th>Daily rate</th><th>Days present</th><th>Pay</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="3">Total payroll</td><td>${fmtMoney(grandTotal)}</td></tr></tfoot>
+    </table>
+  `;
+
+  el.querySelectorAll('input[data-rate]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const emp = employees.find(e => e.id === inp.dataset.rate);
+      if(emp){
+        localChangesMade = true;
+        emp.rate = Math.max(0, Number(inp.value) || 0);
+        renderWeekly();
+        renderPayslips();
+        save();
+      }
+    });
+  });
+  hookWeekNav();
+}
+
+function hookWeekNav(){
+  const prev = document.getElementById('prevWeek');
+  const next = document.getElementById('nextWeek');
+  if(prev) prev.addEventListener('click', () => {
+    const d = new Date(weekAnchor + 'T00:00:00'); d.setDate(d.getDate()-7);
+    weekAnchor = toLocalDateStr(d);
+    renderWeekly();
+    renderPayslips();
+  });
+  if(next) next.addEventListener('click', () => {
+    const d = new Date(weekAnchor + 'T00:00:00'); d.setDate(d.getDate()+7);
+    weekAnchor = toLocalDateStr(d);
+    renderWeekly();
+    renderPayslips();
+  });
+}
+
+function renderPayslips(){
+  const el = document.getElementById('payslipsSection');
+  const { start, end } = getWeekRange(weekAnchor);
+
+  if(employees.length === 0){
+    el.innerHTML = '<h2>Payslips</h2><div class="empty">Add employees above to generate payslips.</div>';
+    return;
+  }
+
+  const cards = employees.map(emp => {
+    const { presentDays, rate, gross } = computeWeeklyPay(emp, weekAnchor);
+    const ded = emp.deductions || { philhealth:0, sss:0, savings:0, others:0, cashAdvance:0 };
+    const totalDed = (Number(ded.philhealth)||0) + (Number(ded.sss)||0) + (Number(ded.savings)||0) + (Number(ded.others)||0) + (Number(ded.cashAdvance)||0);
+    const bonusKey = emp.id + '|' + start;
+    const bonus = Number(bonuses[bonusKey]) || 0;
+    const grossWithBonus = gross + bonus;
+    const net = grossWithBonus - totalDed;
+    return `<div class="payslip-card" data-card="${emp.id}">
+      <div class="payslip-top">
+        <div>
+          <h3>Payslip</h3>
+          <div class="period">Pay period: ${fmtShort(start)}–${fmtShort(end)}, ${start.slice(0,4)}</div>
+        </div>
+        <button class="pbtn" data-print="${emp.id}">Print</button>
+      </div>
+      <div class="payslip-meta">
+        <div><span>Employee</span>${escapeHtml(emp.name)}</div>
+        <div><span>ID</span>${emp.empCode}</div>
+        <div><span>Position</span>${emp.position ? escapeHtml(emp.position) : '—'}</div>
+        <div><span>Days present</span>${presentDays} of 7</div>
+      </div>
+      <div class="payslip-cols">
+        <div class="payslip-block">
+          <h4>Earnings</h4>
+          <div class="payslip-line"><span>Daily rate</span><span>${fmtMoney(rate)}</span></div>
+          <div class="payslip-line sub"><span>Days present</span><span>${presentDays}</span></div>
+          <div class="payslip-line bonusline"><span>Bonus</span><input type="number" min="0" step="0.01" value="${bonus}" data-bonus="${emp.id}" aria-label="Bonus for ${escapeHtml(emp.name)} this week" /></div>
+          <div class="payslip-line total"><span>Gross pay</span><span>${fmtMoney(grossWithBonus)}</span></div>
+        </div>
+        <div class="payslip-block">
+          <h4>Deductions</h4>
+          <div class="payslip-line"><span>PhilHealth</span><span>${fmtMoney(Number(ded.philhealth)||0)}</span></div>
+          <div class="payslip-line"><span>SSS</span><span>${fmtMoney(Number(ded.sss)||0)}</span></div>
+          <div class="payslip-line"><span>Savings</span><span>${fmtMoney(Number(ded.savings)||0)}</span></div>
+          <div class="payslip-line"><span>Cash Advance</span><span>${fmtMoney(Number(ded.cashAdvance)||0)}</span></div>
+          <div class="payslip-line"><span>Others</span><span>${fmtMoney(Number(ded.others)||0)}</span></div>
+          <div class="payslip-line total"><span>Total deductions</span><span>${fmtMoney(totalDed)}</span></div>
+        </div>
+      </div>
+      <div class="payslip-net"><span>Net pay</span><span class="amt">${fmtMoney(net)}</span></div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<h2>Payslips <button class="printall" id="printAll">Print all</button></h2>${cards}`;
+
+  el.querySelectorAll('button[data-print]').forEach(btn => {
+    btn.addEventListener('click', () => printSingle(btn.dataset.print));
+  });
+  el.querySelectorAll('input[data-bonus]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const empId = inp.dataset.bonus;
+      const key = empId + '|' + start;
+      localChangesMade = true;
+      const val = Math.max(0, Number(inp.value) || 0);
+      if(val){ bonuses[key] = val; } else { delete bonuses[key]; }
+      renderPayslips();
+      save();
+    });
+  });
+  const printAllBtn = document.getElementById('printAll');
+  if(printAllBtn) printAllBtn.addEventListener('click', () => window.print());
+}
+
+function printSingle(empId){
+  document.querySelectorAll('.payslip-card').forEach(card => {
+    card.classList.toggle('print-target', card.dataset.card === empId);
+  });
+  document.body.classList.add('printing-single');
+  window.print();
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('printing-single');
+  document.querySelectorAll('.payslip-card').forEach(card => card.classList.remove('print-target'));
+});
+
+function renderMonthly(){
+  const el = document.getElementById('monthly');
+  if(employees.length === 0){ el.innerHTML = ''; return; }
+  const [y,m] = currentDate.split('-').map(Number);
+  const monthPrefix = `${y}-${String(m).padStart(2,'0')}-`;
+  const monthLabel = new Date(y, m-1, 1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+
+  const rows = employees.map(emp => {
+    let p=0,a=0,l=0;
+    Object.keys(attendance).forEach(k => {
+      const [id, date] = k.split('|');
+      if(id === emp.id && date.startsWith(monthPrefix)){
+        const st = attendance[k];
+        if(st==='present') p++; else if(st==='absent') a++; else if(st==='leave') l++;
+      }
+    });
+    return `<tr>
+      <td>${escapeHtml(emp.name)}</td>
+      <td class="num tally-p">${p}</td>
+      <td class="num tally-a">${a}</td>
+      <td class="num tally-l">${l}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <h2>Monthly tally — ${monthLabel}</h2>
+    <table>
+      <thead><tr><th>Employee</th><th>Present</th><th>Absent</th><th>Leave</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function cycleStatus(empId, btn){
+  localChangesMade = true;
+  const k = keyFor(empId, currentDate);
+  const cur = attendance[k];
+  let next;
+  if(!cur) next = 'present';
+  else{
+    const idx = STATES.indexOf(cur);
+    next = idx === STATES.length - 1 ? undefined : STATES[idx+1];
+  }
+  if(next) attendance[k] = next; else delete attendance[k];
+  render();
+  save();
+  requestAnimationFrame(() => {
+    const newBtn = document.querySelector(`button.stamp[data-emp="${empId}"]`);
+    if(newBtn){
+      newBtn.classList.add('thump');
+      newBtn.addEventListener('animationend', () => newBtn.classList.remove('thump'), { once:true });
+    }
+  });
+}
+
+function removeEmployee(id){
+  localChangesMade = true;
+  employees = employees.filter(e => e.id !== id);
+  Object.keys(attendance).forEach(k => { if(k.startsWith(id + '|')) delete attendance[k]; });
+  render();
+  save();
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function addEmployee(){
+  localChangesMade = true;
+  const input = document.getElementById('nameInput');
+  const name = input.value.trim();
+  if(!name) return;
+  empCounter++;
+  employees.push({
+    id: 'emp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name,
+    rate: 0,
+    empCode: 'EMP-' + String(empCounter).padStart(3,'0'),
+    position: '', dateHired: '', contact: '', sssNo: '', philhealthNo: '',
+    deductions: { philhealth: 0, sss: 0, savings: 0, others: 0, cashAdvance: 0 }
+  });
+  input.value = '';
+  render();
+  save();
+  input.focus();
+}
+
+document.getElementById('addBtn').addEventListener('click', addEmployee);
+document.getElementById('nameInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); addEmployee(); }
+});
+
+document.getElementById('prevDay').addEventListener('click', () => {
+  const d = new Date(currentDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  currentDate = toLocalDateStr(d);
+  render();
+});
+document.getElementById('nextDay').addEventListener('click', () => {
+  const d = new Date(currentDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  currentDate = toLocalDateStr(d);
+  render();
+});
+document.getElementById('todayBtn').addEventListener('click', () => {
+  currentDate = todayStr();
+  render();
+});
+document.getElementById('dateInput').addEventListener('change', (e) => {
+  currentDate = e.target.value;
+  render();
+});
+
+document.getElementById('backupToggle').addEventListener('click', () => {
+  const panel = document.getElementById('backupPanel');
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if(opening){
+    document.getElementById('backupText').value = JSON.stringify({ employees, attendance, empCounter, bonuses }, null, 2);
+  }
+});
+
+document.getElementById('backupCloseBtn').addEventListener('click', () => {
+  document.getElementById('backupPanel').classList.remove('open');
+});
+
+document.getElementById('backupCopyBtn').addEventListener('click', async () => {
+  const ta = document.getElementById('backupText');
+  ta.value = JSON.stringify({ employees, attendance, empCounter, bonuses }, null, 2);
+  ta.select();
+  try{
+    await navigator.clipboard.writeText(ta.value);
+    alert('Backup copied to clipboard.');
+  }catch(err){
+    alert('Could not access the clipboard automatically. The text is selected — press Ctrl/Cmd+C to copy it.');
+  }
+});
+
+document.getElementById('backupRestoreBtn').addEventListener('click', () => {
+  const raw = document.getElementById('backupText').value;
+  let parsed;
+  try{
+    parsed = JSON.parse(raw);
+  }catch(err){
+    alert('That text is not valid backup data — could not read it as JSON.');
+    return;
+  }
+  if(!Array.isArray(parsed.employees) || typeof parsed.attendance !== 'object'){
+    alert('That text does not look like a valid backup (missing employees/attendance).');
+    return;
+  }
+  if(!confirm('This will replace everything currently in the register with this backup. Continue?')) return;
+  localChangesMade = true;
+  employees = parsed.employees;
+  attendance = parsed.attendance || {};
+  bonuses = parsed.bonuses || {};
+  empCounter = Number(parsed.empCounter) || employees.length;
+  render();
+  save();
+  document.getElementById('backupPanel').classList.remove('open');
+  alert('Backup restored.');
+});
+
+loadData();
+</script>
+</body>
+</html>
