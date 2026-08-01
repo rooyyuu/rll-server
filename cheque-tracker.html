@@ -592,7 +592,7 @@
   measurementId: "G-0YGZG7NTDK"
 };
 
-  var firebaseReady = firebaseConfig.apiKey !== "AIzaSyDrECMzJUV5X5xjNlcokD7qFw9qjnaH4CU";
+var firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_'));
   var db = null;
   if(firebaseReady){
     try{
