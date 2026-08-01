@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Register — cheque tracker</title>
+
+<!-- Installable web-app support -->
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22The%20Register%20-%20Cheque%20Tracker%22%2C%22short_name%22%3A%22The%20Register%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23E7EFE2%22%2C%22theme_color%22%3A%22%23204A37%22%7D">
+<meta name="theme-color" content="#204A37">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="The Register">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%23204A37'/%3E%3Crect x='30' y='60' width='132' height='72' rx='6' fill='%23FBFBF6' stroke='%2320303B' stroke-width='2' transform='rotate(-4 96 96)'/%3E%3Ccircle cx='140' cy='60' r='22' fill='none' stroke='%23A8342A' stroke-width='4' transform='rotate(-12 140 60)'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%23204A37'/%3E%3Crect x='30' y='60' width='132' height='72' rx='6' fill='%23FBFBF6' stroke='%2320303B' stroke-width='2' transform='rotate(-4 96 96)'/%3E%3Ccircle cx='140' cy='60' r='22' fill='none' stroke='%23A8342A' stroke-width='4' transform='rotate(-12 140 60)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#E7EFE2;
+    --paper-deep:#DCE7D5;
+    --ink:#20303B;
+    --ink-soft:#54646C;
+    --ledger:#2F6B4F;
+    --ledger-deep:#204A37;
+    --gold:#A9822F;
+    --red:#A8342A;
+    --slate:#5B6B73;
+    --line: rgba(32,48,59,0.16);
+    --line-strong: rgba(32,48,59,0.3);
+    --card:#F2F6EE;
+    --white:#FBFBF6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px);
+    background-size: 100% 34px;
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    padding: 32px 20px 80px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:28px;}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:34px;
+    margin:0;
+    letter-spacing:0.2px;
+    color:var(--ledger-deep);
+  }
+  .tagline{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  .identity{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-soft);}
+  .identity button{
+    background:none;border:none;color:var(--ledger-deep);cursor:pointer;
+    font-size:13px;text-decoration:underline;padding:0;font-family:inherit;
+  }
+  .identity-sep{color:var(--line-strong);}
+  .shared-note{
+    font-size:12px;color:var(--ink-soft);background:var(--card);
+    border:1px solid var(--line);border-radius:6px;padding:6px 10px;
+    margin-bottom:24px;display:inline-block;
+  }
+
+  /* ---- Cheque hero panel ---- */
+  .cheque-panel{
+    background:var(--white);
+    border:1.5px solid var(--line-strong);
+    border-radius:4px;
+    padding:24px 26px 18px;
+    position:relative;
+    margin-bottom:36px;
+  }
+  .cheque-panel::before{
+    content:"";
+    position:absolute; inset:8px;
+    border:1px dashed var(--line);
+    border-radius:2px;
+    pointer-events:none;
+  }
+  .cheque-top{display:flex;justify-content:space-between;gap:20px;margin-bottom:18px;}
+  .field-group{display:flex;flex-direction:column;gap:4px;}
+  .field-group label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-soft);}
+  .field-group input, .field-group select{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    border:none;
+    border-bottom:1px solid var(--line-strong);
+    background:transparent;
+    padding:4px 2px;
+    color:var(--ink);
+    outline:none;
+    min-width:0;
+  }
+  .field-group input:focus, .field-group select:focus{border-bottom-color:var(--ledger);}
+  .cheque-row{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px;}
+  .cheque-row .field-group{flex:1;min-width:160px;}
+  .payee-row{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px;}
+  .payee-row .field-group{flex:1;}
+  .payee-row label{white-space:nowrap;}
+  .amount-box{
+    border:1.5px solid var(--ledger);
+    border-radius:3px;
+    padding:6px 10px;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    min-width:150px;
+  }
+  .amount-box span.sym{font-family:'IBM Plex Mono', monospace;font-size:15px;color:var(--ledger-deep);}
+  .amount-box input{border:none;background:transparent;font-family:'IBM Plex Mono', monospace;font-size:15px;outline:none;width:100%;color:var(--ink);}
+  .cheque-bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:6px;}
+  .memo-field{flex:1;}
+  .micr{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:15px;
+    letter-spacing:3px;
+    color:var(--ink-soft);
+    opacity:0.55;
+    margin-top:16px;
+    text-align:center;
+    user-select:none;
+  }
+  .add-btn{
+    background:var(--ledger-deep);
+    color:var(--white);
+    border:none;
+    border-radius:4px;
+    padding:9px 20px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .add-btn:hover{background:var(--ledger);}
+  .form-msg{font-size:12px;color:var(--red);margin-top:8px;min-height:16px;}
+
+  /* ---- Summary strip ---- */
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:26px;}
+  .stat{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:12px 14px;
+  }
+  .stat .label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);margin-bottom:6px;}
+  .stat .value{font-family:'IBM Plex Mono', monospace;font-size:19px;font-weight:600;color:var(--ink);}
+  .stat.pending .value{color:var(--slate);}
+  .stat.cleared .value{color:var(--ledger-deep);}
+  .stat.bounced .value{color:var(--red);}
+
+  /* ---- Toolbar ---- */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+  .toolbar input[type=text]{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    padding:8px 12px;
+    border:1px solid var(--line-strong);
+    border-radius:5px;
+    background:var(--white);
+    min-width:200px;
+    outline:none;
+  }
+  .chip{
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:20px;
+    border:1px solid var(--line-strong);
+    background:var(--white);
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .chip.active{background:var(--ledger-deep);color:var(--white);border-color:var(--ledger-deep);}
+
+  /* ---- Register table ---- */
+  .register{background:var(--white);border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{
+    text-align:left;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    padding:10px 12px;
+    border-bottom:1px solid var(--line-strong);
+    background:var(--paper-deep);
+  }
+  tbody td{
+    padding:10px 12px;
+    font-size:13px;
+    border-bottom:1px solid var(--line);
+    vertical-align:middle;
+  }
+  tbody tr:nth-child(even){background:var(--card);}
+  tbody tr:hover{background:#EDF3E6;}
+  .num{font-family:'IBM Plex Mono', monospace;}
+  .amount-cell{font-family:'IBM Plex Mono', monospace;font-weight:500;text-align:right;}
+  .memo-cell{color:var(--ink-soft);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  select.stamp{
+    appearance:none;-webkit-appearance:none;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.06em;
+    text-align:center;
+    padding:5px 22px 5px 10px;
+    border-radius:3px;
+    cursor:pointer;
+    transform:rotate(-3deg);
+    background-repeat:no-repeat;
+    background-position:right 6px center;
+    background-size:10px;
+  }
+  select.stamp.status-pending{background-color:transparent;color:var(--slate);border:2px solid var(--slate);}
+  select.stamp.status-cleared{background-color:transparent;color:var(--ledger-deep);border:2px solid var(--ledger);}
+  select.stamp.status-bounced{background-color:transparent;color:var(--red);border:2px solid var(--red);}
+  select.stamp.status-cancelled{background-color:transparent;color:var(--ink-soft);border:2px solid var(--ink-soft);}
+
+  .row-actions{display:flex;gap:10px;white-space:nowrap;}
+  .edit-btn{
+    background:none;border:none;color:var(--ledger-deep);cursor:pointer;font-size:12px;
+    text-decoration:underline;padding:0;font-family:inherit;
+  }
+  .edit-btn:hover{color:var(--ledger);}
+  .del-btn{
+    background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:12px;
+    text-decoration:underline;padding:0;font-family:inherit;
+  }
+  .del-btn:hover{color:var(--red);}
+
+  .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
+  .loading{padding:30px;text-align:center;color:var(--ink-soft);font-size:13px;}
+
+  .meta-line{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+
+  /* due-soon banner */
+  .due-banner{
+    background:#FBF3E3;
+    border:1px solid #D9BE7E;
+    border-left:4px solid var(--gold);
+    border-radius:6px;
+    padding:12px 16px;
+    margin-bottom:20px;
+  }
+  .due-banner.has-overdue{
+    background:#FAEDEB;
+    border-color:#E0AFA8;
+    border-left-color:var(--red);
+  }
+  .due-banner-head{display:flex;justify-content:space-between;align-items:center;}
+  .due-banner-title{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:var(--ink);}
+  .due-banner-close{
+    background:none;border:none;cursor:pointer;font-size:18px;line-height:1;
+    color:var(--ink-soft);padding:0 2px;
+  }
+  .due-banner-close:hover{color:var(--ink);}
+  .due-banner-list{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+  .due-banner-item{
+    display:flex;justify-content:space-between;gap:10px;font-size:12px;
+    font-family:'IBM Plex Mono',monospace;color:var(--ink);
+  }
+  .due-banner-item .tag{
+    font-family:'IBM Plex Sans',sans-serif;font-size:10px;text-transform:uppercase;
+    letter-spacing:0.05em;padding:1px 6px;border-radius:3px;margin-right:6px;
+  }
+  .due-banner-item .tag.overdue{background:rgba(168,52,42,0.15);color:var(--red);}
+  .due-banner-item .tag.soon{background:rgba(169,130,47,0.18);color:var(--gold);}
+
+  .due-banner-export{
+    background:none;border:1px solid currentColor;color:var(--gold);
+    border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;
+    font-family:'IBM Plex Sans',sans-serif;white-space:nowrap;
+  }
+  .due-banner.has-overdue .due-banner-export{color:var(--red);}
+  .due-banner-export:hover{background:rgba(0,0,0,0.05);}
+
+  .cal-export-btn{
+    background:var(--card);border:1px solid var(--line-strong);border-radius:6px;
+    padding:8px 14px;font-size:12px;cursor:pointer;color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;white-space:nowrap;
+  }
+  .cal-export-btn:hover{background:var(--paper-deep);}
+
+  .cal-btn{
+    background:none;border:none;color:var(--gold);cursor:pointer;font-size:12px;
+    text-decoration:underline;padding:0;font-family:inherit;
+  }
+  .cal-btn:hover{color:var(--ledger-deep);}
+
+  /* view toggle */
+  .view-toggle{display:flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;}
+  .view-btn{
+    background:var(--white);border:none;font-family:'IBM Plex Sans',sans-serif;
+    font-size:12px;padding:8px 14px;cursor:pointer;color:var(--ink-soft);
+  }
+  .view-btn + .view-btn{border-left:1px solid var(--line-strong);}
+  .view-btn.active{background:var(--ledger-deep);color:var(--white);}
+
+  /* calendar */
+  .calendar-view{background:var(--white);border:1px solid var(--line-strong);border-radius:6px;padding:16px 18px 20px;}
+  .cal-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .cal-title{font-family:'Fraunces',serif;font-size:19px;color:var(--ledger-deep);font-weight:600;flex:1;text-align:center;}
+  .cal-nav, .cal-today{
+    background:var(--card);border:1px solid var(--line-strong);border-radius:5px;
+    cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink);
+    padding:6px 12px;
+  }
+  .cal-nav:hover, .cal-today:hover{background:var(--paper-deep);}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;}
+  .cal-weekdays div{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);text-align:center;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-cell{
+    min-height:88px;border:1px solid var(--line);border-radius:5px;padding:6px;
+    background:var(--card);display:flex;flex-direction:column;gap:3px;
+  }
+  .cal-cell.outside{background:transparent;border-color:transparent;}
+  .cal-cell.today{border-color:var(--ledger);border-width:1.5px;}
+  .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);}
+  .cal-cell.today .cal-daynum{color:var(--ledger-deep);font-weight:600;}
+  .cal-entry{
+    font-size:10px;line-height:1.3;padding:2px 5px;border-radius:3px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;
+    border-left:3px solid var(--slate);background:rgba(91,107,115,0.1);color:var(--ink);
+  }
+  .cal-entry.pending{border-left-color:var(--slate);background:rgba(91,107,115,0.1);}
+  .cal-entry.overdue{border-left-color:var(--red);background:rgba(168,52,42,0.1);color:var(--red);}
+  .cal-entry.cleared{border-left-color:var(--ledger);background:rgba(47,107,79,0.1);}
+  .cal-entry.bounced{border-left-color:var(--red);background:rgba(168,52,42,0.1);}
+  .cal-entry.cancelled{border-left-color:var(--ink-soft);background:rgba(84,100,108,0.08);text-decoration:line-through;opacity:0.7;}
+  .cal-more{font-size:10px;color:var(--ink-soft);}
+  .cal-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--ink-soft);}
+  .cal-legend .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+  .dot.pending{background:var(--slate);}
+  .dot.overdue{background:var(--red);}
+  .dot.cleared{background:var(--ledger);}
+  .dot.bounced{background:var(--red);}
+  .dot.cancelled{background:var(--ink-soft);}
+
+  /* modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(32,48,59,0.4);display:flex;align-items:center;justify-content:center;z-index:50;}
+  .modal-box{background:var(--white);border-radius:8px;padding:24px 26px;width:280px;border:1px solid var(--line-strong);}
+  .modal-box h3{margin:0 0 6px;font-family:'Fraunces',serif;font-size:18px;color:var(--ledger-deep);}
+  .modal-box p{font-size:12px;color:var(--ink-soft);margin:0 0 14px;}
+  .modal-box input{width:100%;padding:8px 10px;border:1px solid var(--line-strong);border-radius:5px;font-size:14px;margin-bottom:12px;outline:none;}
+  .modal-box .add-btn{width:100%;}
+  .modal-box.edit-box{width:420px;max-width:90vw;}
+  .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-bottom:6px;}
+  .edit-grid .field-group input, .edit-grid .field-group select{
+    border:1px solid var(--line-strong);border-radius:5px;padding:7px 9px;
+    font-family:'IBM Plex Mono', monospace;font-size:13px;background:var(--white);
+  }
+  .edit-grid .field-group select{font-family:'IBM Plex Sans',sans-serif;}
+  .edit-actions{display:flex;gap:10px;margin-top:10px;}
+  .edit-actions .add-btn{flex:1;width:auto;}
+  .add-btn.secondary{background:var(--white);color:var(--ink-soft);border:1px solid var(--line-strong);}
+  .add-btn.secondary:hover{background:var(--card);}
+
+  @media (max-width:640px){
+    .register{overflow-x:auto;}
+    table{min-width:680px;}
+    .cheque-top, .cheque-row{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>The Register</h1>
+      <div class="tagline">A shared ledger for every cheque written and received.</div>
+    </div>
+    <div class="identity">
+      <span id="whoami-label">Signing in...</span>
+      <button id="edit-name-btn" type="button">change</button>
+    </div>
+  </header>
+
+  <div class="shared-note">This register is shared — everyone with this page sees the same entries.</div>
+
+  <section class="cheque-panel">
+    <div class="cheque-top">
+      <div class="field-group">
+        <label for="f-number">Cheque #</label>
+        <input type="text" id="f-number" inputmode="numeric" placeholder="1001">
+      </div>
+      <div class="field-group">
+        <label for="f-date">Issued date</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field-group">
+        <label for="f-due-date">Due date</label>
+        <input type="date" id="f-due-date">
+      </div>
+      <div class="field-group">
+        <label for="f-account">Account</label>
+        <input type="text" id="f-account" placeholder="Optional">
+      </div>
+    </div>
+
+    <div class="payee-row">
+      <div class="field-group">
+        <label for="f-payee">Pay to the order of</label>
+        <input type="text" id="f-payee" placeholder="Payee name">
+      </div>
+      <div class="amount-box">
+        <span class="sym" id="currency-sym">₱</span>
+        <input type="number" id="f-amount" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="cheque-bottom">
+      <div class="field-group memo-field">
+        <label for="f-memo">Memo</label>
+        <input type="text" id="f-memo" placeholder="What's this for?">
+      </div>
+      <button class="add-btn" id="add-btn" type="button">Add to register</button>
+    </div>
+    <div class="form-msg" id="form-msg"></div>
+    <div class="micr">⑆ 000000000 ⑆ 0000000000 ⑈ 0000</div>
+  </section>
+
+  <div class="due-banner" id="due-banner" style="display:none;">
+    <div class="due-banner-head">
+      <span class="due-banner-title" id="due-banner-title"></span>
+      <span style="display:flex;align-items:center;gap:14px;">
+        <button class="due-banner-export" id="due-banner-export" type="button">Add to calendar (.ics)</button>
+        <button class="due-banner-close" id="due-banner-close" type="button" aria-label="Dismiss">&times;</button>
+      </span>
+    </div>
+    <div class="due-banner-list" id="due-banner-list"></div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search payee, number, or memo">
+    <button class="chip active" data-filter="all" type="button">All</button>
+    <button class="chip" data-filter="pending" type="button">Pending</button>
+    <button class="chip" data-filter="cleared" type="button">Cleared</button>
+    <button class="chip" data-filter="bounced" type="button">Bounced</button>
+    <button class="chip" data-filter="cancelled" type="button">Void</button>
+    <span style="flex:1"></span>
+    <button class="cal-export-btn" id="toolbar-export-btn" type="button">Export due dates (.ics)</button>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="register" type="button">Register</button>
+      <button class="view-btn" data-view="calendar" type="button">Calendar</button>
+    </div>
+  </div>
+
+  <div class="register" id="register-view">
+    <table>
+      <thead>
+        <tr>
+          <th>Cheque #</th><th>Issued</th><th>Due</th><th>Payee</th><th>Account</th><th style="text-align:right;">Amount</th><th>Memo</th><th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="9" class="loading">Loading register...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="calendar-view" id="calendar-view" style="display:none;">
+    <div class="cal-header">
+      <button class="cal-nav" id="cal-prev" type="button">&larr;</button>
+      <div class="cal-title" id="cal-title">Month Year</div>
+      <button class="cal-nav" id="cal-next" type="button">&rarr;</button>
+      <button class="cal-today" id="cal-today" type="button">Today</button>
+    </div>
+    <div class="cal-weekdays">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-legend">
+      <span><i class="dot pending"></i> Pending</span>
+      <span><i class="dot overdue"></i> Overdue</span>
+      <span><i class="dot cleared"></i> Cleared</span>
+      <span><i class="dot bounced"></i> Bounced</span>
+      <span><i class="dot cancelled"></i> Void</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="name-modal" style="display:none;">
+  <div class="modal-box">
+    <h3>Who's writing?</h3>
+    <p>Your name is attached to entries you add or update in this shared register.</p>
+    <input type="text" id="name-input" placeholder="Your name">
+    <button class="add-btn" id="name-save-btn" type="button">Save</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="edit-modal" style="display:none;">
+  <div class="modal-box edit-box">
+    <h3>Edit details</h3>
+    <p id="edit-meta">&nbsp;</p>
+    <div class="edit-grid">
+      <div class="field-group">
+        <label for="e-number">Cheque #</label>
+        <input type="text" id="e-number" inputmode="numeric">
+      </div>
+      <div class="field-group">
+        <label for="e-status">Status</label>
+        <select id="e-status">
+          <option value="pending">Pending</option>
+          <option value="cleared">Cleared</option>
+          <option value="bounced">Bounced</option>
+          <option value="cancelled">Void</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="e-date">Issued date</label>
+        <input type="date" id="e-date">
+      </div>
+      <div class="field-group">
+        <label for="e-due-date">Due date</label>
+        <input type="date" id="e-due-date">
+      </div>
+      <div class="field-group" style="grid-column:1 / -1;">
+        <label for="e-payee">Pay to the order of</label>
+        <input type="text" id="e-payee">
+      </div>
+      <div class="field-group">
+        <label for="e-amount">Amount</label>
+        <input type="number" id="e-amount" step="0.01" min="0">
+      </div>
+      <div class="field-group">
+        <label for="e-account">Account</label>
+        <input type="text" id="e-account">
+      </div>
+      <div class="field-group" style="grid-column:1 / -1;">
+        <label for="e-memo">Memo</label>
+        <input type="text" id="e-memo">
+      </div>
+    </div>
+    <div class="form-msg" id="edit-msg"></div>
+    <div class="edit-actions">
+      <button class="add-btn secondary" id="edit-cancel-btn" type="button">Cancel</button>
+      <button class="add-btn" id="edit-save-btn" type="button">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  /* =====================================================================
+     FIREBASE SETUP — REQUIRED BEFORE THIS APP WILL SAVE OR SYNC ANYTHING
+     =====================================================================
+     1. Go to https://console.firebase.google.com and create a free project.
+     2. In the project, click "Build > Realtime Database" and create a
+        database (start in test mode, then lock it down — see rules below).
+     3. In Project settings > General, scroll to "Your apps", click the
+        web icon (</>), register an app, and copy the firebaseConfig
+        object it gives you. Paste it in place of the placeholder below.
+     4. Recommended Realtime Database rules (Rules tab), so only this
+        app's paths are readable/writable, no auth required. If you're
+        also using the Attendance & Payroll tool, it shares this same
+        project — add its "payroll" path too:
+          {
+            "rules": {
+              "register": { ".read": true, ".write": true },
+              "names": { ".read": true, ".write": true },
+              "payroll": { ".read": true, ".write": true }
+            }
+          }
+        This is fine for a small private family/friends tool. Anyone with
+        your database URL could read or write it, so don't put sensitive
+        data in it and don't publicize the URL beyond the people you trust.
+     5. Deploy this file (GitHub Pages, Cloudflare Pages, etc.) — every
+        visitor's browser will now read and write the same database, so
+        everyone sees the same shared register in real time.
+     ===================================================================== */
+  var firebaseConfig = {
+    apiKey: "AIzaSyDrECMzJUV5X5xjNlcokD7qFw9qjnaH4CU",
+    authDomain: "rll-server.firebaseapp.com",
+    databaseURL: "https://rll-server-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "rll-server",
+    storageBucket: "rll-server.firebasestorage.app",
+    messagingSenderId: "443252621704",
+    appId: "1:443252621704:web:589608db39ae8adb77fa3d",
+    measurementId: "G-0YGZG7NTDK"
+};
+  var firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_'));
+  var db = null;
+  if(firebaseReady){
+    try{
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+    }catch(e){
+      firebaseReady = false;
+      console.error('Firebase init failed:', e);
+    }
+  }
+
+  var state = {
+    cheques: [],
+    filter: 'all',
+    search: '',
+    userName: '',
+    currency: '₱',
+    loaded: false,
+    view: 'register',
+    calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    bannerDismissed: false
+  };
+
+  function fmtMoney(n){
+    var num = Number(n);
+    if(isNaN(num)) num = 0;
+    return state.currency + num.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  function todayISO(){
+    var d = new Date();
+    return d.toISOString().slice(0,10);
+  }
+
+  function uid(){
+    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  /* ---- Calendar (.ics) export ---- */
+  function addDaysISO(iso, days){
+    var d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0,10);
+  }
+  function icsDate(iso){ return iso.replace(/-/g,''); }
+  function escapeICS(s){
+    return (s || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  }
+  function buildICS(cheques){
+    var dtstamp = new Date().toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+    var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//The Register//Cheque Tracker//EN','CALSCALE:GREGORIAN'];
+    cheques.forEach(function(c){
+      var start = icsDate(c.dueDate);
+      var end = icsDate(addDaysISO(c.dueDate, 1));
+      var summary = 'Cheque #' + c.number + ' due \u2014 ' + c.payee + ' (' + fmtMoney(c.amount) + ')';
+      var descParts = [];
+      if(c.account) descParts.push('Account: ' + c.account);
+      if(c.memo) descParts.push('Memo: ' + c.memo);
+      descParts.push('Status: ' + statusLabel(c.status));
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:' + c.id + '@the-register.cheque-tracker');
+      lines.push('DTSTAMP:' + dtstamp);
+      lines.push('DTSTART;VALUE=DATE:' + start);
+      lines.push('DTEND;VALUE=DATE:' + end);
+      lines.push('SUMMARY:' + escapeICS(summary));
+      if(descParts.length) lines.push('DESCRIPTION:' + escapeICS(descParts.join(' | ')));
+      lines.push('BEGIN:VALARM');
+      lines.push('ACTION:DISPLAY');
+      lines.push('DESCRIPTION:Cheque due tomorrow');
+      lines.push('TRIGGER:-P1D');
+      lines.push('END:VALARM');
+      lines.push('BEGIN:VALARM');
+      lines.push('ACTION:DISPLAY');
+      lines.push('DESCRIPTION:Cheque due today');
+      lines.push('TRIGGER:PT9H');
+      lines.push('END:VALARM');
+      lines.push('END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+  function downloadICS(filename, content){
+    var blob = new Blob([content], {type:'text/calendar;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function exportAllDueDates(){
+    var items = state.cheques.filter(function(c){ return c.status === 'pending' && c.dueDate; });
+    if(!items.length){ alert('No pending cheques with a due date to export yet.'); return; }
+    downloadICS('cheque-due-dates.ics', buildICS(items));
+  }
+  function exportSingleCheque(id){
+    var c = state.cheques.find(function(x){ return x.id === id; });
+    if(!c || !c.dueDate){ alert('This cheque has no due date set.'); return; }
+    downloadICS('cheque-' + c.number + '-due.ics', buildICS([c]));
+  }
+
+  function showNotConfigured(){
+    document.getElementById('rows').innerHTML =
+      '<tr><td colspan="9" class="empty">Firebase isn\'t configured yet. Open this file\'s HTML, find the "FIREBASE SETUP" comment near the top of the script, and paste in your project\'s config. See the comment for step-by-step instructions.</td></tr>';
+    document.getElementById('cal-grid').innerHTML = '';
+  }
+
+  function loadRegister(){
+    // Render immediately with whatever's in memory so the page is never
+    // blank while waiting on Firebase, even if the connection is slow,
+    // misconfigured, or briefly unreachable.
+    render();
+
+    if(!firebaseReady){
+      state.loaded = true;
+      showNotConfigured();
+      return;
+    }
+    db.ref('register').on('value', function(snapshot){
+      var val = snapshot.val();
+      state.cheques = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+      state.loaded = true;
+      render();
+    }, function(err){
+      state.loaded = true;
+      showFormMsg('Could not connect to the shared database: ' + err.message);
+      render();
+    });
+  }
+
+  async function saveRegister(){
+    if(!firebaseReady){ showFormMsg('Firebase isn\'t configured yet — see the setup comment in the file.'); return; }
+    try{
+      await db.ref('register').set(state.cheques);
+    }catch(e){
+      showFormMsg('Could not save — try again.');
+    }
+  }
+
+  function loadIdentity(){
+    try{
+      state.userName = localStorage.getItem('display-name') || '';
+    }catch(e){ state.userName = ''; }
+    updateWhoami();
+    if(!state.userName){ openNameModal(); }
+  }
+
+  function updateWhoami(){
+    document.getElementById('whoami-label').textContent = state.userName ? ('Signed as ' + state.userName) : 'Not signed in';
+  }
+
+  function openNameModal(){
+    document.getElementById('name-input').value = state.userName || '';
+    document.getElementById('name-modal').style.display = 'flex';
+    document.getElementById('name-input').focus();
+  }
+  function closeNameModal(){
+    document.getElementById('name-modal').style.display = 'none';
+  }
+
+  function saveName(){
+    var val = document.getElementById('name-input').value.trim();
+    if(!val) return;
+    state.userName = val;
+    updateWhoami();
+    closeNameModal();
+    try{ localStorage.setItem('display-name', val); }catch(e){}
+  }
+
+  function showFormMsg(msg){
+    var el = document.getElementById('form-msg');
+    el.textContent = msg;
+    if(msg){ setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, 4000); }
+  }
+
+  function nextChequeNumber(){
+    var max = 0;
+    state.cheques.forEach(function(c){
+      var n = parseInt(c.number, 10);
+      if(!isNaN(n) && n > max) max = n;
+    });
+    return String(max + 1 || 1001);
+  }
+
+  async function addCheque(){
+    var number = document.getElementById('f-number').value.trim();
+    var date = document.getElementById('f-date').value;
+    var dueDate = document.getElementById('f-due-date').value;
+    var account = document.getElementById('f-account').value.trim();
+    var payee = document.getElementById('f-payee').value.trim();
+    var amount = document.getElementById('f-amount').value;
+    var memo = document.getElementById('f-memo').value.trim();
+
+    if(!payee){ showFormMsg('Enter who the cheque is for.'); return; }
+    if(!amount || Number(amount) <= 0){ showFormMsg('Enter an amount greater than zero.'); return; }
+    if(!date){ showFormMsg('Enter an issued date.'); return; }
+    if(!number){ showFormMsg('Enter a cheque number.'); return; }
+    if(!state.userName){ openNameModal(); return; }
+
+    var now = new Date().toISOString();
+    var entry = {
+      id: uid(),
+      number: number,
+      date: date,
+      dueDate: dueDate,
+      account: account,
+      payee: payee,
+      amount: Number(amount),
+      memo: memo,
+      status: 'pending',
+      addedBy: state.userName,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: state.userName
+    };
+    state.cheques.unshift(entry);
+    render();
+    resetForm();
+    await saveRegister();
+  }
+
+  function resetForm(){
+    document.getElementById('f-number').value = nextChequeNumber();
+    document.getElementById('f-date').value = todayISO();
+    document.getElementById('f-due-date').value = '';
+    document.getElementById('f-account').value = '';
+    document.getElementById('f-payee').value = '';
+    document.getElementById('f-amount').value = '';
+    document.getElementById('f-memo').value = '';
+  }
+
+  async function changeStatus(id, newStatus){
+    if(!state.userName){ openNameModal(); return; }
+    var c = state.cheques.find(function(x){ return x.id === id; });
+    if(!c) return;
+    c.status = newStatus;
+    c.updatedAt = new Date().toISOString();
+    c.updatedBy = state.userName;
+    render();
+    await saveRegister();
+  }
+
+  async function removeCheque(id){
+    if(!confirm('Remove this cheque from the register? This cannot be undone.')) return;
+    state.cheques = state.cheques.filter(function(x){ return x.id !== id; });
+    render();
+    await saveRegister();
+  }
+
+  var editingId = null;
+
+  function openEditModal(id){
+    var c = state.cheques.find(function(x){ return x.id === id; });
+    if(!c) return;
+    editingId = id;
+    document.getElementById('e-number').value = c.number || '';
+    document.getElementById('e-status').value = c.status || 'pending';
+    document.getElementById('e-date').value = c.date || '';
+    document.getElementById('e-due-date').value = c.dueDate || '';
+    document.getElementById('e-payee').value = c.payee || '';
+    document.getElementById('e-amount').value = c.amount != null ? c.amount : '';
+    document.getElementById('e-account').value = c.account || '';
+    document.getElementById('e-memo').value = c.memo || '';
+    document.getElementById('edit-meta').textContent = 'Added by ' + (c.addedBy || '—') + (c.updatedBy && c.updatedBy !== c.addedBy ? ', last edited by ' + c.updatedBy : '');
+    document.getElementById('edit-msg').textContent = '';
+    document.getElementById('edit-modal').style.display = 'flex';
+  }
+
+  function closeEditModal(){
+    editingId = null;
+    document.getElementById('edit-modal').style.display = 'none';
+  }
+
+  async function saveEditModal(){
+    if(!editingId) return;
+    var c = state.cheques.find(function(x){ return x.id === editingId; });
+    if(!c) return;
+    if(!state.userName){ openNameModal(); return; }
+
+    var number = document.getElementById('e-number').value.trim();
+    var date = document.getElementById('e-date').value;
+    var dueDate = document.getElementById('e-due-date').value;
+    var payee = document.getElementById('e-payee').value.trim();
+    var amount = document.getElementById('e-amount').value;
+    var account = document.getElementById('e-account').value.trim();
+    var memo = document.getElementById('e-memo').value.trim();
+    var status = document.getElementById('e-status').value;
+
+    if(!payee){ document.getElementById('edit-msg').textContent = 'Enter who the cheque is for.'; return; }
+    if(!amount || Number(amount) <= 0){ document.getElementById('edit-msg').textContent = 'Enter an amount greater than zero.'; return; }
+    if(!date){ document.getElementById('edit-msg').textContent = 'Enter an issued date.'; return; }
+    if(!number){ document.getElementById('edit-msg').textContent = 'Enter a cheque number.'; return; }
+
+    c.number = number;
+    c.date = date;
+    c.dueDate = dueDate;
+    c.payee = payee;
+    c.amount = Number(amount);
+    c.account = account;
+    c.memo = memo;
+    c.status = status;
+    c.updatedAt = new Date().toISOString();
+    c.updatedBy = state.userName;
+
+    closeEditModal();
+    render();
+    await saveRegister();
+  }
+
+  function statusLabel(s){
+    return {pending:'Pending', cleared:'Cleared', bounced:'Bounced', cancelled:'Void'}[s] || s;
+  }
+
+  function filteredCheques(){
+    var q = state.search.toLowerCase();
+    return state.cheques.filter(function(c){
+      if(state.filter !== 'all' && c.status !== state.filter) return false;
+      if(!q) return true;
+      return (c.payee||'').toLowerCase().indexOf(q) > -1 ||
+             (c.number||'').toLowerCase().indexOf(q) > -1 ||
+             (c.memo||'').toLowerCase().indexOf(q) > -1 ||
+             (c.account||'').toLowerCase().indexOf(q) > -1;
+    }).sort(function(a,b){
+      return new Date(b.date) - new Date(a.date) || (b.createdAt||'').localeCompare(a.createdAt||'');
+    });
+  }
+
+  function renderSummary(){
+    var totals = {pending:0, cleared:0, bounced:0, cancelled:0};
+    var counts = {pending:0, cleared:0, bounced:0, cancelled:0};
+    state.cheques.forEach(function(c){
+      if(totals[c.status] !== undefined){
+        totals[c.status] += Number(c.amount)||0;
+        counts[c.status] += 1;
+      }
+    });
+    var html = '';
+    html += '<div class="stat pending"><div class="label">Pending (' + counts.pending + ')</div><div class="value">' + fmtMoney(totals.pending) + '</div></div>';
+    html += '<div class="stat cleared"><div class="label">Cleared (' + counts.cleared + ')</div><div class="value">' + fmtMoney(totals.cleared) + '</div></div>';
+    html += '<div class="stat bounced"><div class="label">Bounced (' + counts.bounced + ')</div><div class="value">' + fmtMoney(totals.bounced) + '</div></div>';
+    html += '<div class="stat"><div class="label">Total in register</div><div class="value">' + state.cheques.length + '</div></div>';
+    document.getElementById('summary').innerHTML = html;
+  }
+
+  function esc(s){
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : s;
+    return d.innerHTML;
+  }
+
+  function renderRows(){
+    var list = filteredCheques();
+    var body = document.getElementById('rows');
+    if(!list.length){
+      body.innerHTML = '<tr><td colspan="9" class="empty">' + (state.cheques.length ? 'No cheques match your search or filter.' : 'No cheques yet. Write one above to start the register.') + '</td></tr>';
+      return;
+    }
+    var html = list.map(function(c){
+      var memoTitle = esc(c.memo || '');
+      var isOverdue = c.status === 'pending' && c.dueDate && c.dueDate < todayISO();
+      var dueCell = c.dueDate ? esc(c.dueDate) : '—';
+      if(isOverdue){ dueCell = '<span style="color:var(--red);font-weight:500;">' + dueCell + '</span>'; }
+      return '' +
+      '<tr>' +
+        '<td class="num">' + esc(c.number) + '</td>' +
+        '<td>' + esc(c.date) + '</td>' +
+        '<td>' + dueCell + '</td>' +
+        '<td>' + esc(c.payee) + '<div class="meta-line">by ' + esc(c.addedBy||'—') + '</div></td>' +
+        '<td>' + esc(c.account || '—') + '</td>' +
+        '<td class="amount-cell">' + fmtMoney(c.amount) + '</td>' +
+        '<td class="memo-cell" title="' + memoTitle + '">' + esc(c.memo || '—') + '</td>' +
+        '<td>' +
+          '<select class="stamp status-' + c.status + '" data-id="' + c.id + '">' +
+            '<option value="pending"' + (c.status==='pending'?' selected':'') + '>Pending</option>' +
+            '<option value="cleared"' + (c.status==='cleared'?' selected':'') + '>Cleared</option>' +
+            '<option value="bounced"' + (c.status==='bounced'?' selected':'') + '>Bounced</option>' +
+            '<option value="cancelled"' + (c.status==='cancelled'?' selected':'') + '>Void</option>' +
+          '</select>' +
+        '</td>' +
+        '<td class="row-actions">' +
+          (c.dueDate ? '<button class="cal-btn" data-id="' + c.id + '" type="button">Cal</button>' : '') +
+          '<button class="edit-btn" data-id="' + c.id + '" type="button">Edit</button>' +
+          '<button class="del-btn" data-id="' + c.id + '" type="button">Remove</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+    body.innerHTML = html;
+
+    body.querySelectorAll('select.stamp').forEach(function(sel){
+      sel.addEventListener('change', function(){
+        changeStatus(sel.getAttribute('data-id'), sel.value);
+      });
+    });
+    body.querySelectorAll('.cal-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        exportSingleCheque(btn.getAttribute('data-id'));
+      });
+    });
+    body.querySelectorAll('.edit-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        openEditModal(btn.getAttribute('data-id'));
+      });
+    });
+    body.querySelectorAll('.del-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        removeCheque(btn.getAttribute('data-id'));
+      });
+    });
+  }
+
+  function render(){
+    renderSummary();
+    renderDueBanner();
+    if(state.view === 'calendar'){
+      renderCalendar();
+    }else{
+      renderRows();
+    }
+  }
+
+  function daysUntil(iso){
+    var today = new Date(todayISO() + 'T00:00:00');
+    var due = new Date(iso + 'T00:00:00');
+    return Math.round((due - today) / 86400000);
+  }
+
+  function renderDueBanner(){
+    var banner = document.getElementById('due-banner');
+    if(state.bannerDismissed){ banner.style.display = 'none'; return; }
+
+    var today = todayISO();
+    var soonLimit = 7;
+    var items = state.cheques.filter(function(c){
+      return c.status === 'pending' && c.dueDate;
+    }).map(function(c){
+      var d = daysUntil(c.dueDate);
+      return {c:c, d:d};
+    }).filter(function(x){
+      return x.d <= soonLimit;
+    }).sort(function(a,b){ return a.d - b.d; });
+
+    if(!items.length){ banner.style.display = 'none'; return; }
+
+    var overdueCount = items.filter(function(x){ return x.d < 0; }).length;
+    var soonCount = items.length - overdueCount;
+
+    banner.classList.toggle('has-overdue', overdueCount > 0);
+
+    var titleParts = [];
+    if(overdueCount) titleParts.push(overdueCount + ' overdue');
+    if(soonCount) titleParts.push(soonCount + ' due within ' + soonLimit + ' days');
+    document.getElementById('due-banner-title').textContent = titleParts.join(' · ');
+
+    var listHtml = items.slice(0, 8).map(function(x){
+      var c = x.c, d = x.d;
+      var tag, tagLabel;
+      if(d < 0){ tag = 'overdue'; tagLabel = Math.abs(d) + 'd overdue'; }
+      else if(d === 0){ tag = 'overdue'; tagLabel = 'due today'; }
+      else { tag = 'soon'; tagLabel = 'in ' + d + 'd'; }
+      return '<div class="due-banner-item"><span><span class="tag ' + tag + '">' + tagLabel + '</span>' + esc(c.payee) + ' · #' + esc(c.number) + '</span><span>' + fmtMoney(c.amount) + ' — ' + esc(c.dueDate) + '</span></div>';
+    }).join('');
+    if(items.length > 8){
+      listHtml += '<div class="due-banner-item" style="color:var(--ink-soft);">+' + (items.length - 8) + ' more</div>';
+    }
+    document.getElementById('due-banner-list').innerHTML = listHtml;
+    banner.style.display = '';
+  }
+
+  function pad2(n){ return n < 10 ? '0'+n : ''+n; }
+  function isoDate(y,m,d){ return y + '-' + pad2(m+1) + '-' + pad2(d); }
+
+  function renderCalendar(){
+    var monthStart = state.calendarMonth;
+    var year = monthStart.getFullYear();
+    var month = monthStart.getMonth();
+    var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('cal-title').textContent = monthNames[month] + ' ' + year;
+
+    var firstOfMonth = new Date(year, month, 1);
+    var startDow = firstOfMonth.getDay();
+    var daysInMonth = new Date(year, month+1, 0).getDate();
+    var daysInPrevMonth = new Date(year, month, 0).getDate();
+    var today = todayISO();
+
+    var byDate = {};
+    filteredCheques().forEach(function(c){
+      if(!c.dueDate) return;
+      if(!byDate[c.dueDate]) byDate[c.dueDate] = [];
+      byDate[c.dueDate].push(c);
+    });
+
+    var cells = [];
+    for(var i=0;i<startDow;i++){
+      var pd = daysInPrevMonth - startDow + 1 + i;
+      cells.push({outside:true, label: pd});
+    }
+    for(var d=1; d<=daysInMonth; d++){
+      cells.push({outside:false, label:d, iso: isoDate(year, month, d)});
+    }
+    while(cells.length % 7 !== 0){
+      cells.push({outside:true, label: cells.length - (startDow+daysInMonth) + 1});
+    }
+
+    var html = cells.map(function(cell){
+      if(cell.outside){
+        return '<div class="cal-cell outside"><div class="cal-daynum">' + cell.label + '</div></div>';
+      }
+      var isToday = cell.iso === today;
+      var entries = byDate[cell.iso] || [];
+      var shown = entries.slice(0,3);
+      var entryHtml = shown.map(function(c){
+        var cls = c.status;
+        if(c.status === 'pending' && c.dueDate < today){ cls = 'overdue'; }
+        var label = esc(c.payee) + ' ' + fmtMoney(c.amount);
+        return '<div class="cal-entry ' + cls + '" title="' + esc(c.payee) + ' — ' + fmtMoney(c.amount) + ' — ' + statusLabel(c.status) + '">' + label + '</div>';
+      }).join('');
+      var moreHtml = entries.length > 3 ? '<div class="cal-more">+' + (entries.length-3) + ' more</div>' : '';
+      return '<div class="cal-cell' + (isToday?' today':'') + '"><div class="cal-daynum">' + cell.label + '</div>' + entryHtml + moreHtml + '</div>';
+    }).join('');
+
+    document.getElementById('cal-grid').innerHTML = html;
+  }
+
+  document.getElementById('add-btn').addEventListener('click', addCheque);
+  document.getElementById('search').addEventListener('input', function(e){
+    state.search = e.target.value;
+    renderRows();
+  });
+  document.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      state.filter = chip.getAttribute('data-filter');
+      renderRows();
+    });
+  });
+  document.getElementById('edit-name-btn').addEventListener('click', openNameModal);
+  document.getElementById('name-save-btn').addEventListener('click', saveName);
+  document.getElementById('name-input').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') saveName();
+  });
+  document.getElementById('due-banner-export').addEventListener('click', exportAllDueDates);
+  document.getElementById('toolbar-export-btn').addEventListener('click', exportAllDueDates);
+
+  document.getElementById('due-banner-close').addEventListener('click', function(){
+    state.bannerDismissed = true;
+    document.getElementById('due-banner').style.display = 'none';
+  });
+
+  document.getElementById('edit-cancel-btn').addEventListener('click', closeEditModal);
+  document.getElementById('edit-save-btn').addEventListener('click', saveEditModal);
+  document.getElementById('edit-modal').addEventListener('click', function(e){
+    if(e.target.id === 'edit-modal') closeEditModal();
+  });
+
+  document.querySelectorAll('.view-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.view-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.view = btn.getAttribute('data-view');
+      document.getElementById('register-view').style.display = state.view === 'register' ? '' : 'none';
+      document.getElementById('calendar-view').style.display = state.view === 'calendar' ? '' : 'none';
+      render();
+    });
+  });
+  document.getElementById('cal-prev').addEventListener('click', function(){
+    state.calendarMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth()-1, 1);
+    renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', function(){
+    state.calendarMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth()+1, 1);
+    renderCalendar();
+  });
+  document.getElementById('cal-today').addEventListener('click', function(){
+    var now = new Date();
+    state.calendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    renderCalendar();
+  });
+
+  resetForm();
+  loadIdentity();
+  loadRegister();
+})();
+</script>
+</body>
+</html>
