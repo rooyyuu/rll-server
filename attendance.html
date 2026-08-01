@@ -791,6 +791,7 @@ const firebaseConfig = {
   appId: "1:443252621704:web:589608db39ae8adb77fa3d",
   measurementId: "G-0YGZG7NTDK"
 };
+};
 
 let firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_'));
 let db = null;
@@ -838,9 +839,14 @@ function applyMigrations(){
 function loadData(){
   document.getElementById('fbNotice').classList.toggle('show', !firebaseReady);
 
+  // Render immediately with whatever's in memory (empty on first load) so
+  // the page is fully interactive right away and never appears blank or
+  // stuck, even if the Firebase connection is slow, misconfigured, or
+  // briefly unreachable.
+  render();
+
   if(!firebaseReady){
     setSaveStatus(false);
-    render();
     return;
   }
 
