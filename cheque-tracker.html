@@ -583,16 +583,16 @@
         everyone sees the same shared register in real time.
      ===================================================================== */
   var firebaseConfig = {
-  apiKey: "AIzaSyDrECMzJUV5X5xjNlcokD7qFw9qjnaH4CU",
-  authDomain: "rll-server.firebaseapp.com",
-  projectId: "rll-server",
-  storageBucket: "rll-server.firebasestorage.app",
-  messagingSenderId: "443252621704",
-  appId: "1:443252621704:web:589608db39ae8adb77fa3d",
-  measurementId: "G-0YGZG7NTDK"
-};
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
 
-var firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_'));
+  var firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_'));
   var db = null;
   if(firebaseReady){
     try{
@@ -703,6 +703,11 @@ var firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWit
   }
 
   function loadRegister(){
+    // Render immediately with whatever's in memory so the page is never
+    // blank while waiting on Firebase, even if the connection is slow,
+    // misconfigured, or briefly unreachable.
+    render();
+
     if(!firebaseReady){
       state.loaded = true;
       showNotConfigured();
@@ -716,6 +721,7 @@ var firebaseReady = !!(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWit
     }, function(err){
       state.loaded = true;
       showFormMsg('Could not connect to the shared database: ' + err.message);
+      render();
     });
   }
 
